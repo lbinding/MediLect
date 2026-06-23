@@ -26,8 +26,8 @@ def test_pdf_deconstruction():
     preprocessors = [
         #AutoOrientPreprocessor(),
         #SpreadSplitterPreprocessor(),
-        #MacroRegionExtractor(use_florence_vlm=True, pad_pixels=8),
-        PaddleBoxExtractor(pad_pixels=4)
+        MacroRegionExtractor(use_florence_vlm=True, pad_pixels=8),
+        #PaddleBoxExtractor(pad_pixels=4)
     ]
     extractor = preprocessors[-1]
 
@@ -46,7 +46,7 @@ def test_pdf_deconstruction():
             image_stream = []
             for page in pdf:
                 # Render at 200 DPI (200 / 72 PDF points = scale of 2.777)
-                pil_img = page.render(scale=200/72).to_pil()
+                pil_img = page.render().to_pil()
                 image_stream.append(cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR))
 
             # Push the document through the assembly line

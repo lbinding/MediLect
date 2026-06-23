@@ -70,7 +70,7 @@ class MacroRegionExtractor(BasePreprocessor):
             
     def _detect_regions_florence(self, img: np.ndarray) -> List[Tuple[Tuple[int, int, int, int], str]]:
         img_h, img_w = img.shape[:2]
-        task = "<OCR_WITH_REGION>" 
+        task = "<DENSE_REGION_CAPTION>"# "<OCR_WITH_REGION>" 
         
         # =================================================================
         # 1. THE EDGE-BLINDNESS CURE
@@ -305,18 +305,14 @@ from .base import BasePreprocessor
 
 class PaddleBoxExtractor(BasePreprocessor):
     """
-    Uses PaddleOCR's DBNet++ to locate text boundaries.
-    Initialized using the 'clean-start' method to avoid argument validation crashes.
+    Uses PaddleOCR's DBNet++ to locate sub-millimeter text boundaries.
+    Runs on the highly stable v2.8.1 API.
     """
     def __init__(self, pad_pixels: int = 4):
         from paddleocr import PaddleOCR
         
-        # Initialize with no arguments to bypass the rigid argument validator
-        self.det_engine = PaddleOCR()
-        
-        # Explicitly disable recognition by stripping the model reference
-        self.det_engine.ocr_engine.rec_model = None
-        
+        # In v2.8.1, rec=False works perfectly and disables the language model.
+        self.det_engine = PaddleOCR(use_angle_cls=False, rec=False, show_log=False, use_mkldnn=False, enable_mkldnn=False)
         self.pad = pad_pixels
         self.page_audit_map: Dict[int, Dict[str, Any]] = {}
 
@@ -325,7 +321,8 @@ class PaddleBoxExtractor(BasePreprocessor):
         self.page_audit_map = {}
 
         for page_idx, page_img in enumerate(images):
-            # Because we stripped the rec_model, .ocr() now only runs detection
+            img_h, img_w = page_img.shape[:2]
+            
             polygons = self.det_engine.ocr(page_img, rec=False)
             
             page_records = []
@@ -334,18 +331,16 @@ class PaddleBoxExtractor(BasePreprocessor):
                 sorted_polys = sorted(polygons[0], key=lambda box: box[0][1])
 
                 for poly_idx, poly in enumerate(sorted_polys):
-                    # Handle polygon coordinate extraction
-                    pts = [pt for pt in poly]
-                    xs = [pt[0] for pt in pts]
-                    ys = [pt[1] for pt in pts]
+                    xs = [pt[0] for pt in poly]
+                    ys = [pt[1] for pt in poly]
                     
                     x0, y0 = int(min(xs)), int(min(ys))
                     x1, y1 = int(max(xs)), int(max(ys))
 
                     px0 = max(0, x0 - self.pad)
                     py0 = max(0, y0 - self.pad)
-                    px1 = min(page_img.shape[1], x1 + self.pad)
-                    py1 = min(page_img.shape[0], y1 + self.pad)
+                    px1 = min(img_w, x1 + self.pad)
+                    py1 = min(img_h, y1 + self.pad)
 
                     box_tuple = (px0, py0, px1, py1)
                     crop_arr = page_img[py0:py1, px0:px1].copy()
