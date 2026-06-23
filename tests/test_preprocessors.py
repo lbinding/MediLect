@@ -10,13 +10,14 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
+
 from packagename.utils.image import to_numpy_bgr
 from packagename.preprocessing import AutoOrientPreprocessor, SpreadSplitterPreprocessor
 
 def run_pipeline_test():
     # 1. Define Paths (Preserving your exact Windows paths)
     COMPOSITE_DIR = Path(r"C:\Users\lawrence\Desktop\RWL\Composite_Pages\pages")
-    OUT_DIR = Path(r"C:\Users\lawrence\Desktop\RWL\Composite_Pages\Split")
+    OUT_DIR = Path(r"C:\Users\lawrence\Desktop\RWL\Github\RWL_medical_record_transcription\tests\rotation_pipeline_output")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     
     IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp'}
@@ -25,9 +26,9 @@ def run_pipeline_test():
     # 2. Instantiate the Assembly Line ONCE outside the loop
     print("⚙️ Spinning up VLM instances and loading Preprocessors...")
     orienter = AutoOrientPreprocessor(min_confidence=4.0, vlm_fallback_model="qwen3-vl:8b")
-    splitter = SpreadSplitterPreprocessor(vlm_model="gemma4:e4b", canny_thresholds=(50, 150))
+    splitter = SpreadSplitterPreprocessor(vlm_model="qwen3-vl:8b", canny_thresholds=(50, 150))
     
-    pipeline = [orienter, splitter]
+    pipeline = [orienter]#, splitter]
 
     # 3. Run the batch
     for file_path in COMPOSITE_DIR.iterdir():

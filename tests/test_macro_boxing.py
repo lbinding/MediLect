@@ -12,7 +12,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from packagename.preprocessing import AutoOrientPreprocessor, SpreadSplitterPreprocessor
-from packagename.preprocessing.layout import MacroRegionExtractor, PaddleBoxExtractor
+from packagename.preprocessing.layout import MacroRegionExtractor, PaddleBoxExtractor, SuryaBoxExtractor, SuryaLayoutBlockExtractor
 
 def test_pdf_deconstruction():
     PDF_DATA_DIR = Path(r"C:\Users\lawrence\Desktop\RWL\data")
@@ -26,8 +26,10 @@ def test_pdf_deconstruction():
     preprocessors = [
         #AutoOrientPreprocessor(),
         #SpreadSplitterPreprocessor(),
-        MacroRegionExtractor(use_florence_vlm=True, pad_pixels=8),
-        #PaddleBoxExtractor(pad_pixels=4)
+        #MacroRegionExtractor(use_florence_vlm=True, pad_pixels=8),
+        #PaddleBoxExtractor(pad_pixels=4),
+        #SuryaBoxExtractor(pad_pixels=4),
+        SuryaLayoutBlockExtractor(pad_pixels=4)
     ]
     extractor = preprocessors[-1]
 
@@ -46,7 +48,7 @@ def test_pdf_deconstruction():
             image_stream = []
             for page in pdf:
                 # Render at 200 DPI (200 / 72 PDF points = scale of 2.777)
-                pil_img = page.render().to_pil()
+                pil_img = page.render(scale=1.0).to_pil()
                 image_stream.append(cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR))
 
             # Push the document through the assembly line

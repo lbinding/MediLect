@@ -1,3 +1,4 @@
+import os
 import cv2
 import re
 import random
@@ -15,6 +16,9 @@ class AutoOrientPreprocessor(BasePreprocessor):
     def __init__(self, min_confidence: float = 4.0, vlm_fallback_model: str = "qwen3-vl:8b"):
         self.min_confidence = min_confidence
         self.vlm_model = vlm_fallback_model
+
+        pytesseract.pytesseract.tesseract_cmd = r'C:\Users\lawrence\miniconda3\envs\deepseek-ocr2\Library\bin\tesseract.exe'
+        os.environ['TESSDATA_PREFIX'] = r'C:\Users\lawrence\miniconda3\envs\deepseek-ocr2\share\tessdata'
 
     def run(self, images: List[np.ndarray]) -> List[np.ndarray]:
         corrected_images = []
@@ -66,14 +70,14 @@ class AutoOrientPreprocessor(BasePreprocessor):
         print(" Full image confidence too low. Trying random patches...")
         generator = self.random_patch_generator(img, num_patches=100, patch_scale=0.5)
         next(generator) # Skip the full image
-
+        
         for name, crop_img in generator:
             try:
                 osd = pytesseract.image_to_osd(crop_img)
                 angle = int(re.search(r'(?<=Rotate: )\d+', osd).group(0))
                 conf = float(re.search(r'(?<=Orientation confidence: )[\d\.]+', osd).group(0))
-
-                print(f"Patch Conf: {conf}")
+        
+                #print(f"Patch Conf: {conf}")
                 if conf > self.min_confidence:
                     print(f" Tesseract found rotation via '{name}': {angle}°")
                     return angle
@@ -84,7 +88,7 @@ class AutoOrientPreprocessor(BasePreprocessor):
         print(f"\n Exhausted all Tesseract patches. Falling back to VLM ({self.vlm_model})...")
         
         try:
-            max_dim = 1024
+            max_dim = 896
             h, w = img.shape[:2]
             img_scaled = img 
             
@@ -105,25 +109,35 @@ class AutoOrientPreprocessor(BasePreprocessor):
                     {
                         'role': 'system',
                         'content': (
-                            "You are an expert document layout analyzer. Look at the text alignment in the image. "
-                            "Determine the clockwise rotation angle required to make the document perfectly upright. "
-                            "Your answer MUST be exactly 0, 90, 180, or 270. "
-                            "You MUST return a valid JSON object. Your output must exactly match this structure: "
-                            '{"thinking": "...", "rotation_angle": "..."}' 
+                            "You are an expert document layout analyzer specialized in optical orientation correction. "
+                            "Analyze the text alignment, header positions, and reading order in the image to determine "
+                            "how it must be rotated to be perfectly upright and readable from left-to-right, top-to-bottom."
                         )
                     },
                     {
                         'role': 'user',
-                        'content': "What is the correction angle of this document? Output only the JSON.",
+                        'content': (
+                            "Analyze this document image and determine the exact CLOCKWISE rotation angle in degrees "
+                            "required to make the text perfectly upright. \n\n"
+                            "Use this strict guide:\n"
+                            "- If the document is already upright, return 0.\n"
+                            "- If the document is sideways (rotated counter-clockwise), return 90.\n"
+                            "- If the document is completely upside down, return 180.\n"
+                            "- If the document is sideways (rotated clockwise), return 270.\n\n"
+                            "You MUST return a valid JSON object matching this exact schema layout:\n"
+                            "{\n"
+                            '  "thinking": "Brief explanation of text orientation clues noticed.",\n'
+                            '  "rotation_angle": 0\n'
+                            "}\n"
+                            "Output only the JSON object."
+                        ),
                         'images': [img_bytes] 
                     }
                 ],
                 options={
-                    'temperature': 0.0,
-                    'num_predict': 1536 
+                    'temperature': 0.0
                 }
             )
-
             # --- Step 4: Parse and Validate Safely ---
             raw_content = response.message.content
             
