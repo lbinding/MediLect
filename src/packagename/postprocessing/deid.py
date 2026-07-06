@@ -46,7 +46,7 @@ class HybridDeidentifier(BasePostprocessor):
         audit_trail = {}
 
         for page_id, raw_md in raw_pages.items():
-            print(f"🛡️ Scrubbing {page_id}...")
+            print(f"Scrubbing {page_id}...")
             
             # Step 1: Strip Markdown formatting down to clean prose
             clean_text = self._strip_markdown(raw_md)

@@ -22,7 +22,7 @@ def test_pdf_deconstruction():
         shutil.rmtree(ROOT_OUT_DIR)
     ROOT_OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # 1. Mount toolchain with Florence-2 explicitly set to True
+    # 1. Setup preprocessors 
     preprocessors = [
         #AutoOrientPreprocessor(),
         #SpreadSplitterPreprocessor(),
