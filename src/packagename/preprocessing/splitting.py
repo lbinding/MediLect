@@ -10,7 +10,7 @@ from ..datamodels import DocumentComposition
 class SpreadSplitterPreprocessor(BasePreprocessor):
     """Detects composite 2-page scans and slices them down the optimal gutter."""
     
-    def __init__(self, vlm_model: str = "gemma4:e4b", canny_thresholds: Tuple[int, int] = (50, 150)):
+    def __init__(self, vlm_model: str = "qwen3-vl:8b", canny_thresholds: Tuple[int, int] = (50, 150)):
         self.vlm_model = vlm_model
         self.canny_low, self.canny_high = canny_thresholds
 

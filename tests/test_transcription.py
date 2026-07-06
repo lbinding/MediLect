@@ -1,95 +1,103 @@
 import os
 import sys
-import cv2
 import shutil
 import numpy as np
 from pathlib import Path
-import pypdfium2 as pdfium 
 
-# Mount local package
+
+# Mount local package AND the new config folder
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
+sys.path.insert(0, str(PROJECT_ROOT))  # Allows us to import from the root config folder
 
+from config.settings import RAW_DATA_DIR, TRANSCRIPTION_OUT_DIR, configure_tesseract
 from packagename.transcription.mineru import MinerUTranscriber
 from packagename.transcription.paddle_vl import PaddleVLTranscriber
+from packagename.transcription.docTR import DocTRTranscriber
 from packagename.preprocessing.layout import SuryaBoxExtractor
+from packagename.utils.data_loader import UniversalDataLoader
+from packagename.preprocessing.rotation import AutoOrientPreprocessor
+from packagename.preprocessing.splitting import SpreadSplitterPreprocessor
+
+# Instantly apply Tesseract configuration to the environment
+configure_tesseract()
+
+preprocessors = [
+    AutoOrientPreprocessor(),
+    SpreadSplitterPreprocessor(),
+    # SuryaBoxExtractor(pad_pixels=4)
+        ]
+
+transcribers = [
+    #MinerUTranscriber(use_gpu=True),   # loaded once, stays loaded for the whole batch
+    #PaddleVLTranscriber(use_gpu=True, task="ocr"),
+    DocTRTranscriber(use_gpu=True)
+
+]
+transcriber = transcribers[0]
 
 def test_full_page_transcription():
-    PDF_DATA_DIR = Path(r"C:\Users\lawrence\Desktop\RWL\data")
-    ROOT_OUT_DIR = Path(r"C:\Users\lawrence\Desktop\RWL\Github\RWL_medical_record_transcription\tests\Transcription_Outputs")
-
     # Clean the output directory for a fresh run
-    if ROOT_OUT_DIR.exists():
-        shutil.rmtree(ROOT_OUT_DIR)
-    ROOT_OUT_DIR.mkdir(parents=True, exist_ok=True)
+    if TRANSCRIPTION_OUT_DIR.exists():
+        shutil.rmtree(TRANSCRIPTION_OUT_DIR)
+    TRANSCRIPTION_OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    print("🚀 Initializing Transcription Engine...")
-    
+
     # ---------------------------------------------------------
-    # TRANSCRIBER TOGGLE
-    # True  -> Uses MinerU (Full page parsing)
-    # False -> Uses PaddleVL (Requires Surya crop extraction)
+    # DATA INGESTION
     # ---------------------------------------------------------
-    USE_MINERU = False 
+    data_loader = UniversalDataLoader(render_dpi=200)
     
-    if USE_MINERU:
-        transcriber = MinerUTranscriber(use_gpu=True)
-        layout_engine = None
-    else:
-        transcriber = PaddleVLTranscriber()
-        layout_engine = None  # SuryaBoxExtractor(pad_pixels=4)
-    
-    for file_path in PDF_DATA_DIR.iterdir():
-        if not file_path.is_file() or file_path.suffix.lower() != '.pdf':
+    # Pull the input directory dynamically from our config file
+    data_stream = data_loader.load(RAW_DATA_DIR)
+
+    print("\n" + "="*60)
+    print(f"📂 Starting batch processing from: {RAW_DATA_DIR.name}")
+
+    for document in data_stream:
+        # We only want to run OCR on image data
+        if document["data_type"] != "image":
             continue
+            
+        stem = document["stem"]
+        page_num = document["page_num"]
+        total_pages = document["total_pages"]
+        page_img_bgr = document["data"]
 
-        print(f"\n" + "="*60)
-        print(f"📖 Ingesting PDF Document: {file_path.name}")
+        print(f"\n📖 Processing {document['filename']} (Page {page_num}/{total_pages})...")
         
         try:
-            # Open PDF instantly with PDFium
-            pdf = pdfium.PdfDocument(file_path)
-            print(f"   ↳ Extracted {len(pdf)} pages via PDFium.")
-
             # Create a dedicated folder for this document's text files
-            doc_folder = ROOT_OUT_DIR / file_path.stem
+            doc_folder = TRANSCRIPTION_OUT_DIR / stem
             doc_folder.mkdir(parents=True, exist_ok=True)
 
-            for page_idx, page in enumerate(pdf):
-                # Render at 200 DPI for high-quality text extraction
-                pil_img = page.render().to_pil()
-                page_img_bgr = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+            # --- EXECUTE PIPELINE ---
+            current_crops = [page_img_bgr]
+            
+            # 1. Run the image through all configured preprocessors sequentially
+            for processor in preprocessors:
+                print(f"       ↳ Running {processor.__class__.__name__}...")
+                current_crops = processor.run(current_crops)
+                
+            print(f"       ↳ Transcribing {len(current_crops)} image segment(s) with {transcriber.__class__.__name__}...")
 
-                print(f"     -> Processing Page {page_idx+1}...")
-                
-                # --- SMART ROUTING ---
-                if layout_engine is None:
-                    # MinerU natively digests the entire page
-                    processing_batch = [page_img_bgr]
-                else:
-                    # PaddleVL needs Surya to isolate the text lines first
-                    print(f"       ↳ Extracting layout crops with Surya...")
-                    processing_batch = layout_engine.run([page_img_bgr])
-                
-                print(f"       ↳ Transcribing {len(processing_batch)} image segment(s)...")
-                
-                # Both adapters now use the exact same unified signature
-                results = transcriber.run(crops=processing_batch)
+            # 2. Final Transcription Stage (Converts Image Crops -> Text Strings)
+            results = transcriber.run(crops=current_crops)
 
-                # Combine list of strings into a single markdown string
-                final_text = "\n\n".join(results)
-                
-                # Save to a Markdown file
-                out_file = doc_folder / f"Page_{page_idx+1:02d}.md"
-                with open(out_file, "w", encoding="utf-8") as f:
-                    f.write(final_text)
+            # Combine list of strings into a single markdown string
+            final_text = "\n\n".join(results)
+            
+            # Save to a Markdown file
+            out_file = doc_folder / f"Page_{page_num:02d}.md"
+            with open(out_file, "w", encoding="utf-8") as f:
+                f.write(final_text)
 
-            print(f"   └── ✅ Saved all transcriptions to {doc_folder.name}/")
+            print(f"   └── ✅ Saved transcription to {doc_folder.name}/Page_{page_num:02d}.md")
 
         except Exception as e:
-            print(f"❌ Failed processing {file_path.name}: {e}")
+            print(f"❌ Failed processing {document['filename']} page {page_num}: {e}")
 
-    print(f"\n✅ Batch finished! Verify your transcriptions here: {ROOT_OUT_DIR.resolve()}")
+    print(f"\n✅ Batch finished! Verify your transcriptions here: {TRANSCRIPTION_OUT_DIR.resolve()}")
 
 if __name__ == "__main__":
     test_full_page_transcription()

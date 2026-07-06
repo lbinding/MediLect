@@ -1,73 +1,103 @@
-import tempfile
-import subprocess
-import cv2
+# packagename/transcription/mineru.py
+from __future__ import annotations
+
+import gc
+from typing import List, Union
+
 import numpy as np
-from pathlib import Path
-from typing import List
+import torch
 from PIL import Image
+from transformers import AutoProcessor, Qwen2VLForConditionalGeneration
+from mineru_vl_utils import MinerUClient
+
 
 class MinerUTranscriber:
     """
-    Adapter for MinerU v3.x. 
-    Accepts raw OpenCV image arrays and uses a temporary Ghost Buffer 
-    to interface with MinerU's file-based CLI engine.
+    Loads the MinerU2.5 VLM once and reuses it for every page/document.
+    Uses the `transformers` backend of mineru-vl-utils (simplest to install,
+    slower than vLLM — fine for local/dev testing).
     """
-    def __init__(self, use_gpu: bool = True):
-        self.use_gpu = use_gpu
-        print("⚙️ Booting MinerU (Adapter Mode)...")
 
-    def run(self, images: List[np.ndarray]) -> List[str]:
-        """
-        Accepts a list of full-page OpenCV BGR arrays.
-        Returns a list containing the parsed Markdown strings.
-        """
-        if not images:
+    def __init__(
+        self,
+        model_name: str = "opendatalab/MinerU2.5-2509-1.2B",
+        use_gpu: bool = True,
+        dtype: str = "auto",
+        image_analysis: bool = False,
+    ):
+        device_map = "auto" if use_gpu and torch.cuda.is_available() else "cpu"
+        if use_gpu and device_map == "cpu":
+            print("⚠️  GPU requested but CUDA not available — falling back to CPU.")
+
+        print(f"⏳ Loading MinerU model '{model_name}' ({device_map})...")
+        self.model = Qwen2VLForConditionalGeneration.from_pretrained(
+            model_name,
+            dtype=dtype,
+            device_map=device_map,
+        )
+        self.model.eval()
+
+        self.processor = AutoProcessor.from_pretrained(model_name, use_fast=True)
+
+        self.client = MinerUClient(
+            backend="transformers",
+            model=self.model,
+            processor=self.processor,
+            image_analysis=image_analysis,
+        )
+        print("✅ MinerU model loaded.")
+
+    # ------------------------------------------------------------------ #
+    # Public interface — kept identical to your existing pipeline's
+    # `transcriber.run(crops=...)` call signature.
+    # ------------------------------------------------------------------ #
+    def run(self, crops: List[Union[np.ndarray, Image.Image]]) -> List[str]:
+        if not crops:
             return []
 
-        # 1. Convert OpenCV BGR arrays to PIL RGB Images
-        pil_images = []
-        for img in images:
-            rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            pil_images.append(Image.fromarray(rgb_img))
+        pil_crops = [self._to_pil(c) for c in crops]
 
-        # 2. Create a secure, self-destructing Temporary Directory
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_dir_path = Path(temp_dir)
-            temp_pdf_path = temp_dir_path / "ghost_document.pdf"
-            output_dir = temp_dir_path / "output"
+        with torch.inference_mode():
+            # Batches layout-detect + content-extract across all crops at once
+            batched_blocks = self.client.batch_two_step_extract(pil_crops)
 
-            # Instantly compile the image arrays into a temporary multi-page PDF
-            pil_images[0].save(
-                temp_pdf_path, 
-                save_all=True, 
-                append_images=pil_images[1:], 
-                resolution=200.0
-            )
+        return [self._blocks_to_text(blocks) for blocks in batched_blocks]
 
-            # 3. Execute the MinerU engine on the Ghost File
-            command = [
-                "mineru",
-                "-p", str(temp_pdf_path),
-                "-o", str(output_dir)
-            ]
+    # ------------------------------------------------------------------ #
+    # Helpers
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    def _to_pil(crop: Union[np.ndarray, Image.Image]) -> Image.Image:
+        """Accepts a cv2-style BGR numpy array or a PIL Image."""
+        if isinstance(crop, Image.Image):
+            return crop.convert("RGB")
+        if crop.ndim == 3 and crop.shape[2] == 3:
+            crop = crop[:, :, ::-1]  # BGR -> RGB
+        return Image.fromarray(crop)
 
-            try:
-                # Run the CLI engine and capture any internal errors
-                subprocess.run(command, check=True, capture_output=True, text=True)
-                
-                # MinerU creates a subfolder named after the PDF stem ("ghost_document")
-                mineru_out_folder = output_dir / "ghost_document"
-                md_files = list(mineru_out_folder.glob("*.md"))
-                
-                if md_files:
-                    with open(md_files[0], 'r', encoding='utf-8') as f:
-                        # Return the full markdown document as a single-item list 
-                        # to match the unified List[str] return type
-                        return [f.read()]
-                else:
-                    print("⚠️ MinerU finished, but no markdown was found.")
-                    return []
-                    
-            except subprocess.CalledProcessError as e:
-                print(f"❌ MinerU Engine Error:\n{e.stderr}")
-                return []
+    @staticmethod
+    def _blocks_to_text(blocks) -> str:
+        """
+        Joins a page's ContentBlock list into a single markdown-ish string,
+        in the order MinerU returns them (already reading-order sorted).
+        Each ContentBlock generally exposes a `.content` attribute; this
+        falls back gracefully if the field name differs in your installed
+        version — run `print(blocks[0])` once to confirm the schema.
+        """
+        parts = []
+        for block in blocks:
+            text = getattr(block, "content", None)
+            if text is None and isinstance(block, dict):
+                text = block.get("content") or block.get("text")
+            if text:
+                parts.append(str(text).strip())
+        return "\n\n".join(parts)
+
+    def unload(self):
+        """Free GPU memory explicitly, e.g. between test runs."""
+        del self.model
+        del self.processor
+        del self.client
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()

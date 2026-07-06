@@ -9,6 +9,7 @@ from ollama import chat
 
 from .base import BasePreprocessor
 from ..datamodels import DocumentRotation 
+from config.settings import configure_tesseract
 
 class AutoOrientPreprocessor(BasePreprocessor):
     """Corrects 90, 180, and 270 degree page rotations."""
@@ -17,8 +18,9 @@ class AutoOrientPreprocessor(BasePreprocessor):
         self.min_confidence = min_confidence
         self.vlm_model = vlm_fallback_model
 
-        pytesseract.pytesseract.tesseract_cmd = r'C:\Users\lawrence\miniconda3\envs\deepseek-ocr2\Library\bin\tesseract.exe'
-        os.environ['TESSDATA_PREFIX'] = r'C:\Users\lawrence\miniconda3\envs\deepseek-ocr2\share\tessdata'
+        configure_tesseract()
+        #pytesseract.pytesseract.tesseract_cmd = r'C:\Users\lawrence\miniconda3\envs\deepseek-ocr2\Library\bin\tesseract.exe'
+        #os.environ['TESSDATA_PREFIX'] = r'C:\Users\lawrence\miniconda3\envs\deepseek-ocr2\share\tessdata'
 
     def run(self, images: List[np.ndarray]) -> List[np.ndarray]:
         corrected_images = []
