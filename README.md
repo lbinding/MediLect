@@ -1,4 +1,4 @@
-# Medical Record Transcription Pipeline
+# MediLect (Medical Lectio): Medical Record Transcription Pipeline
 
 This repository implements a document-processing pipeline for extracting and cleaning text from medical record scans and PDFs. The workflow is designed around four major stages:
 
