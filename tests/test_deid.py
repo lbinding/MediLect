@@ -8,10 +8,10 @@ from pathlib import Path
 import pandas as pd
 
 # Point Python to the 'src' directory so we can import the core logic
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PROJECT_ROOT / "src"))
+#PROJECT_ROOT = Path(__file__).resolve().parent.parent
+#sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from packagename.postprocessing.deid import HybridDeidentifier
+from medilect.postprocessing.deid import HybridDeidentifier
 
 def run_deid_validation_test():
     # Define input and output paths explicitly

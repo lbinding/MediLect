@@ -5,11 +5,12 @@ from bs4 import BeautifulSoup
 from typing import Dict, List, Any
 from pydantic import BaseModel, Field
 from .base import BasePostprocessor
+from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassification
+from ollama import chat
 
 class PatientDataExtractor(BaseModel):
     contains_pii: bool
     extracted_identifiers: List[str] = Field(default_factory=list)
-
 
 class HybridDeidentifier(BasePostprocessor):
     """
@@ -18,8 +19,6 @@ class HybridDeidentifier(BasePostprocessor):
     Stage 2: Generative Catch-All Sweep (Ollama LLM)
     """
     def __init__(self, roberta_model: str = "obi/deid_roberta_i2b2", ollama_model: str = "gemma4:e4b"):
-        from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassification
-        
         self.roberta_name = roberta_model
         self.llm_name = ollama_model
         
@@ -113,8 +112,6 @@ class HybridDeidentifier(BasePostprocessor):
         return scrubbed
 
     def _stage2_llm_audit_scrub(self, original_clean_text: str, current_scrubbed_text: str) -> str:
-        from ollama import chat
-
         PROMPT_REGISTRY = [
             (
                 "UK Postcodes & Addresses", 

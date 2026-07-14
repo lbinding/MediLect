@@ -3,7 +3,6 @@ import numpy as np
 import re
 from typing import List, Tuple
 from ollama import chat
-
 from .base import BasePreprocessor
 from ..datamodels import DocumentComposition
 

@@ -11,13 +11,13 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 sys.path.insert(0, str(PROJECT_ROOT))  # Allows us to import from the root config folder
 
 from config.settings import RAW_DATA_DIR, TRANSCRIPTION_OUT_DIR, configure_tesseract
-from packagename.transcription.mineru import MinerUTranscriber
-from packagename.transcription.paddle_vl import PaddleVLTranscriber
-from packagename.transcription.docTR import DocTRTranscriber
-from packagename.preprocessing.layout import SuryaBoxExtractor
-from packagename.utils.data_loader import UniversalDataLoader
-from packagename.preprocessing.rotation import AutoOrientPreprocessor
-from packagename.preprocessing.splitting import SpreadSplitterPreprocessor
+from medilect.transcription.mineru import MinerUTranscriber
+from medilect.transcription.paddle_vl import PaddleVLTranscriber
+from medilect.transcription.docTR import DocTRTranscriber
+from medilect.preprocessing.layout import SuryaBoxExtractor
+from medilect.utils.data_loader import UniversalDataLoader
+from medilect.preprocessing.rotation import AutoOrientPreprocessor
+from medilect.preprocessing.splitting import SpreadSplitterPreprocessor
 
 # Instantly apply Tesseract configuration to the environment
 configure_tesseract()

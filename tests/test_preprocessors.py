@@ -7,12 +7,12 @@ from pathlib import Path
 # --- THE "LOCAL PACKAGE" PYTHON HACK ---
 #   TODO: CHANGE FOR FINAL VERSION - ITS NOT NEEDED
 # This forces Python to look in your the src folder 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PROJECT_ROOT / "src"))
+#PROJECT_ROOT = Path(__file__).resolve().parent.parent
+#sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 
-from packagename.utils.image import to_numpy_bgr
-from packagename.preprocessing import AutoOrientPreprocessor, SpreadSplitterPreprocessor
+from medilect.utils.image import to_numpy_bgr
+from medilect.preprocessing import AutoOrientPreprocessor, SpreadSplitterPreprocessor
 
 def run_pipeline_test():
     # 1. Define Paths (Preserving your exact Windows paths)

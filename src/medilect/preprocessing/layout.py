@@ -3,8 +3,9 @@ import numpy as np
 from PIL import Image
 from typing import List, Tuple, Dict, Any
 from .base import BasePreprocessor
+import re
 
-class MacroRegionExtractor(BasePreprocessor):
+class LayoutExtractorFlorence(BasePreprocessor):
     """
     Decomposes full document pages into distinct semantic layout crops (Paragraphs, Headers, Tables).
     Features an automatic fallback from Microsoft Florence-2 to OpenCV Morphological Smearing.
@@ -23,7 +24,7 @@ class MacroRegionExtractor(BasePreprocessor):
             from transformers import AutoProcessor, AutoModelForCausalLM
             from transformers.configuration_utils import PreTrainedConfig
             from transformers.tokenization_utils_base import PreTrainedTokenizerBase
-            from transformers.modeling_utils import PreTrainedModel # <--- NEW GUARD
+            from transformers.modeling_utils import PreTrainedModel
 
             # =================================================================
             # THE HUGGINGFACE v4.40+ TOTAL RIOT SHIELD
@@ -134,7 +135,6 @@ class MacroRegionExtractor(BasePreprocessor):
         return self._kill_swallowed_boxes(final_regions)
 
     def _run_inference_pass(self, crop: np.ndarray, offset_y: int, task: str) -> List[Tuple[Tuple[int, int, int, int], str]]:
-        import re
         
         # 1. CLAHE Contrast Filter (Turns grey text pitch black)
         lab = cv2.cvtColor(crop, cv2.COLOR_BGR2LAB)
@@ -314,12 +314,8 @@ class MacroRegionExtractor(BasePreprocessor):
         return regions
 
 
-import cv2
-import numpy as np
-from typing import List, Tuple, Dict, Any
-from .base import BasePreprocessor
 
-class PaddleBoxExtractor(BasePreprocessor):
+class LayoutExtractorPaddle(BasePreprocessor):
     """
     Uses PaddleOCR's DBNet++ to locate sub-millimeter text boundaries.
     Runs on the highly stable v2.8.1 API.
@@ -376,14 +372,7 @@ class PaddleBoxExtractor(BasePreprocessor):
 
         return flat_region_stream
     
-
-import cv2
-import numpy as np
-from PIL import Image
-from typing import List, Tuple, Dict, Any
-from .base import BasePreprocessor
-
-class SuryaBoxExtractor(BasePreprocessor):
+class BoxExtractorSurya(BasePreprocessor):
     """
     Uses the Surya SegFormer for line-level text boundary detection.
     Requires: pip install surya-ocr==0.6.0
@@ -509,18 +498,16 @@ class SuryaBoxExtractor(BasePreprocessor):
 
         return paragraphs
     
-
-class SuryaLayoutBlockExtractor(BasePreprocessor):
+class LayoutExtractorSurya(BasePreprocessor):
     """
     Uses the Surya SegFormer Layout weights to detect full block-level structures.
     Requires: pip install surya-ocr==0.6.0
     """
     def __init__(self, pad_pixels: int = 4):
         import torch
-        # FIX: Both engines use the base detection loading utilities
         from surya.model.detection.model import load_model, load_processor       
         from surya.settings import settings
-        
+
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         print(f"⚙️ Booting Surya Layout Analysis Engine on {self.device}...")
 
@@ -540,8 +527,6 @@ class SuryaLayoutBlockExtractor(BasePreprocessor):
     def run(self, images: List[np.ndarray]) -> List[np.ndarray]:
         from surya.detection import batch_text_detection
         from surya.layout import batch_layout_detection
-        from PIL import Image
-        import cv2
 
         flat_region_stream = []
         self.page_audit_map = {}

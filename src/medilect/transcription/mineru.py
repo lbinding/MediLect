@@ -1,9 +1,6 @@
-# packagename/transcription/mineru.py
 from __future__ import annotations
-
 import gc
 from typing import List, Union
-
 import numpy as np
 import torch
 from PIL import Image

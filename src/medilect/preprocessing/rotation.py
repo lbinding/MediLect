@@ -6,7 +6,6 @@ import pytesseract
 import numpy as np
 from typing import List, Tuple, Iterator
 from ollama import chat
-
 from .base import BasePreprocessor
 from ..datamodels import DocumentRotation 
 from config.settings import configure_tesseract
@@ -17,10 +16,8 @@ class AutoOrientPreprocessor(BasePreprocessor):
     def __init__(self, min_confidence: float = 4.0, vlm_fallback_model: str = "qwen3-vl:8b"):
         self.min_confidence = min_confidence
         self.vlm_model = vlm_fallback_model
-
+        
         configure_tesseract()
-        #pytesseract.pytesseract.tesseract_cmd = r'C:\Users\lawrence\miniconda3\envs\deepseek-ocr2\Library\bin\tesseract.exe'
-        #os.environ['TESSDATA_PREFIX'] = r'C:\Users\lawrence\miniconda3\envs\deepseek-ocr2\share\tessdata'
 
     def run(self, images: List[np.ndarray]) -> List[np.ndarray]:
         corrected_images = []
