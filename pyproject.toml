@@ -29,7 +29,8 @@ dependencies = [
     "pydantic>=2.13.4",
     "markdown",
     "beautifulsoup4>=4.15.0",
-    "accelerate>=0.26.0"
+    "accelerate>=0.26.0",
+    "einops>=0.8.2"
 ]
 
 [project.optional-dependencies]

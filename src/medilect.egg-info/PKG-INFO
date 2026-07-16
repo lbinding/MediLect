@@ -22,6 +22,7 @@ Requires-Dist: pydantic>=2.13.4
 Requires-Dist: markdown
 Requires-Dist: beautifulsoup4>=4.15.0
 Requires-Dist: accelerate>=0.26.0
+Requires-Dist: einops>=0.8.2
 Provides-Extra: dev
 Requires-Dist: pytest; extra == "dev"
 Requires-Dist: black; extra == "dev"

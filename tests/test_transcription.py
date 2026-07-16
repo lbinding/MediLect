@@ -10,6 +10,7 @@ from medilect.transcription.docTR import DocTRTranscriber
 from medilect.utils.data_loader import UniversalDataLoader
 from medilect.preprocessing.rotation import AutoOrientPreprocessor
 from medilect.preprocessing.splitting import SpreadSplitterPreprocessor
+import traceback
 
 # Instantly apply Tesseract configuration to the environment
 configure_tesseract()
@@ -22,8 +23,8 @@ preprocessors = [
 
 transcribers = [
     #MinerUTranscriber(use_gpu=True),   # loaded once, stays loaded for the whole batch
-    #PaddleVLTranscriber(use_gpu=True, task="ocr"),
-    DocTRTranscriber(use_gpu=True)
+    PaddleVLTranscriber(use_gpu=True, task="ocr"),
+    #DocTRTranscriber(use_gpu=True)
 
 ]
 transcriber = transcribers[0]
@@ -88,6 +89,7 @@ def test_full_page_transcription():
 
         except Exception as e:
             print(f"❌ Failed processing {document['filename']} page {page_num}: {e}")
+            traceback.print_exc()   # <-- add this
 
     print(f"\n✅ Batch finished! Verify your transcriptions here: {TRANSCRIPTION_OUT_DIR.resolve()}")
 
