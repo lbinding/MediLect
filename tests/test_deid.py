@@ -6,36 +6,41 @@ import difflib
 import sys
 from pathlib import Path
 import pandas as pd
-
-# Point Python to the 'src' directory so we can import the core logic
-#PROJECT_ROOT = Path(__file__).resolve().parent.parent
-#sys.path.insert(0, str(PROJECT_ROOT / "src"))
-
+from medilect.config.settings import OCR_IN_DIR, GT_BASE_DIR, OUT_CSV_PATH
+from medilect.utils.data_loader import UniversalDataLoader
 from medilect.postprocessing.deid import HybridDeidentifier
 
 def run_deid_validation_test():
-    # Define input and output paths explicitly
-    OCR_IN_DIR = Path(r"C:\Users\lawrence\Desktop\RWL\De-identification\models\paddleocr")
-    GT_BASE_DIR = Path(r"C:\Users\lawrence\Desktop\RWL\De-identification\GT_dataset")
-    OUT_CSV_PATH = Path(r"C:\Users\lawrence\Desktop\RWL\De-identification\methods\roberta_paddleocr\summary_csv\modular_pipeline_audit.csv")
-
+    # Ensure output directory exists
     OUT_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-    # 1. Harvest raw OCR Markdown files into memory
-    search_pattern = OCR_IN_DIR / "page_*" / "paddleocr.txt"
-    md_files = sorted(glob.glob(str(search_pattern)))
+    # 1. Harvest raw OCR Markdown files into memory using DataLoader
+    print(f"📂 Loading OCR results from: {OCR_IN_DIR}")
+    data_loader = UniversalDataLoader()
+    data_stream = data_loader.load(OCR_IN_DIR)
     
     raw_input_dict = {}
-    for fp in md_files:
-        page_key = os.path.basename(os.path.dirname(fp))
-        with open(fp, 'r', encoding='utf-8') as f:
-            raw_input_dict[page_key] = f.read()
+    for document in data_stream:
+        # Filter for text-based outputs
+        if document.get("data_type") not in ["text", "markdown"]:
+            continue
+            
+        # Safely extract the full path to get the parent folder (e.g., 'page_01')
+        file_path = Path(document.get("filepath", document.get("path", "")))
+        
+        # Preserve your specific target filter
+        if file_path.name != "paddleocr.txt":
+            continue
+            
+        page_key = file_path.parent.name
+        raw_input_dict[page_key] = document["data"]
 
     if not raw_input_dict:
-        print(f"❌ No markdown files found matching: {search_pattern}")
+        print(f"❌ No 'paddleocr.txt' files found in: {OCR_IN_DIR}")
         return
 
     # 2. Run the modular De-ID engine
+    print(f"⚙️ Running Hybrid De-identifier on {len(raw_input_dict)} pages...")
     deidentifier = HybridDeidentifier()
     processed_corpus = deidentifier.run(raw_input_dict)
 
@@ -50,7 +55,7 @@ def run_deid_validation_test():
         orig_clean = text_versions["clean_ocr"].lower()
         final_scrubbed = text_versions["final_llm_scrubbed"].lower()
 
-        gt_path = GT_BASE_DIR / page_key / "identifiable_info.json"
+        gt_path = Path(GT_BASE_DIR) / page_key / "identifiable_info.json"
         if not gt_path.exists():
             print(f"⚠️ No ground truth found for {page_key}. Excluded from scoring.")
             continue

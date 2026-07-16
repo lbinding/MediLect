@@ -1,0 +1,27 @@
+Metadata-Version: 2.4
+Name: medilect
+Version: 0.1.0
+Summary: A localized medical record transcription and de-identification pipeline
+Author: Lawrence Peter Binding
+Requires-Python: >=3.9
+Requires-Dist: torch>=2.12.1
+Requires-Dist: torchvision>=0.27.1
+Requires-Dist: transformers>=4.57.6
+Requires-Dist: opencv-python>=4.13.0.92
+Requires-Dist: numpy>=2.2.6
+Requires-Dist: pillow>=10.4.0
+Requires-Dist: pypdfium2>=4.30.0
+Requires-Dist: surya-ocr>=0.20.0
+Requires-Dist: python-doctr>=1.0.1
+Requires-Dist: paddleocr>=3.7.0
+Requires-Dist: paddlex>=3.7.2
+Requires-Dist: pytesseract>=0.3.13
+Requires-Dist: mineru_vl_utils>=1.0.5
+Requires-Dist: ollama>=0.6.2
+Requires-Dist: pydantic>=2.13.4
+Requires-Dist: markdown
+Requires-Dist: beautifulsoup4>=4.15.0
+Requires-Dist: accelerate>=0.26.0
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: black; extra == "dev"

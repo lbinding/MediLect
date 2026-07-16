@@ -1,0 +1,2 @@
+[console_scripts]
+medilect = medilect.cli:main

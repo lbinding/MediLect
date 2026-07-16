@@ -14,6 +14,10 @@ TRANSCRIPTION_OUT_DIR = Path(r"C:\Users\lawrence\Desktop\RWL\Github\RWL_medical_
 # For De-identification testing, this is setup is for the de-identification folders
 OCR_IN_DIR = Path(r"C:\Users\lawrence\Desktop\RWL\De-identification\models\paddleocr")
 GT_BASE_DIR = Path(r"C:\Users\lawrence\Desktop\RWL\De-identification\GT_dataset")
+OUT_CSV_PATH = Path(r"C:\Users\lawrence\Desktop\RWL\De-identification\methods\roberta_paddleocr\summary_csv\modular_pipeline_audit.csv")
+
+COMPOSITE_DATA_DIR = Path(r"C:\Users\lawrence\Desktop\RWL\Composite_Pages\pages")
+COMPOSITE_OUT_DIR = Path(r"C:\Users\lawrence\Desktop\RWL\Github\RWL_medical_record_transcription\tests\rotation_pipeline_output")
 
 # ==============================================================================
 # ⚙️ TESSERACT OCR SETUP

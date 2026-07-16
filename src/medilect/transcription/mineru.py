@@ -33,8 +33,10 @@ class MinerUTranscriber:
             device_map=device_map,
         )
         self.model.eval()
-
         self.processor = AutoProcessor.from_pretrained(model_name, use_fast=True)
+
+        if not hasattr(self.model.config, "max_position_embeddings"):
+            self.model.config.max_position_embeddings = 32768
 
         self.client = MinerUClient(
             backend="transformers",

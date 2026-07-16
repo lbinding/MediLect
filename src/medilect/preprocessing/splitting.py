@@ -26,6 +26,11 @@ class SpreadSplitterPreprocessor(BasePreprocessor):
         return processed_stream
 
     def _is_composite_spread(self, img: np.ndarray) -> bool:
+        # Add a quick check: if the image is taller than it is wide, it's likely a single page
+        h, w = img.shape[:2]
+        if h >= w:
+            return False
+        
         # --- Step 1: Resize & Encode to Bytes ---
         try:
             # Prevent Context Overflow: Resize image so the longest side is max 1024px

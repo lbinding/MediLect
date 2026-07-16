@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "medilect" 
+version = "0.1.0"
+description = "A localized medical record transcription and de-identification pipeline"
+authors = [
+    { name = "Lawrence Peter Binding" }
+]
+requires-python = ">=3.9"
+
+dependencies = [
+    "torch>=2.12.1",
+    "torchvision>=0.27.1",
+    "transformers>=4.57.6",
+    "opencv-python>=4.13.0.92",
+    "numpy>=2.2.6",
+    "pillow>=10.4.0",
+    "pypdfium2>=4.30.0",
+    "surya-ocr>=0.20.0",
+    "python-doctr>=1.0.1",
+    "paddleocr>=3.7.0",
+    "paddlex>=3.7.2",
+    "pytesseract>=0.3.13",
+    "mineru_vl_utils>=1.0.5",
+    "ollama>=0.6.2",
+    "pydantic>=2.13.4",
+    "markdown",
+    "beautifulsoup4>=4.15.0",
+    "accelerate>=0.26.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "black"
+]
+
+[project.scripts]
+medilect = "medilect.cli:main"

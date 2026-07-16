@@ -4,13 +4,6 @@ import shutil
 import numpy as np
 from pathlib import Path
 import pypdfium2 as pdfium 
-
-# --- THE "LOCAL PACKAGE" PYTHON HACK ---
-#   TODO: CHANGE FOR FINAL VERSION - ITS NOT NEEDED
-# This forces Python to look in your the src folder 
-#PROJECT_ROOT = Path(__file__).resolve().parent.parent
-#sys.path.insert(0, str(PROJECT_ROOT / "src"))
-
 from medilect.preprocessing import AutoOrientPreprocessor, SpreadSplitterPreprocessor
 from medilect.preprocessing.layout import MacroRegionExtractor, PaddleBoxExtractor, SuryaBoxExtractor, SuryaLayoutBlockExtractor
 

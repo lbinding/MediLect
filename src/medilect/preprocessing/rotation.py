@@ -8,7 +8,7 @@ from typing import List, Tuple, Iterator
 from ollama import chat
 from .base import BasePreprocessor
 from ..datamodels import DocumentRotation 
-from config.settings import configure_tesseract
+from medilect.config.settings import configure_tesseract
 
 class AutoOrientPreprocessor(BasePreprocessor):
     """Corrects 90, 180, and 270 degree page rotations."""
