@@ -24,15 +24,22 @@ COMPOSITE_OUT_DIR = Path(r"C:\Users\lawrence\Desktop\RWL\Github\RWL_medical_reco
 # ==============================================================================
 def configure_tesseract():
     """
-    Injects the Tesseract paths into PyTesseract and your system environment.
-    Call this at the top of any script that needs Tesseract.
+    You may be asking yourself, why on earth have you designed a function to configure Tesseract? 
+    Why not just set the environment variables and paths directly in this file? 
+    Well, my friend, let me tell you a tale of woe and frustration.
+    Windows and tesseract are an absolute headache to get working, Mac? easy. Linux? easy. Windows? Sorry please spend a full date chasing obscure files. 
+    So this function exists because I needed to transverse envrionments. As the primary deployment of this is on linux I have uncommented the windows paths.
+    Whomever takes over this project you can probably just delete this function and import pytesseract directly. 
+    But for now, this is a helper function to make it easier to set up Tesseract on Windows.
+
+    Apologies for the spaghetti, but this is a necessary evil to get Tesseract working on my Windows.
     """
     # 1. Set the data prefix environment variable
-    os.environ['TESSDATA_PREFIX'] = r'C:\Users\lawrence\miniconda3\envs\deepseek-ocr2\share\tessdata'
+    #os.environ['TESSDATA_PREFIX'] = r'C:\Users\lawrence\miniconda3\envs\deepseek-ocr2\share\tessdata'
     
     # 2. Safely map the executable (fails gracefully if pytesseract isn't in this specific conda env)
-    try:
-        import pytesseract
-        pytesseract.pytesseract.tesseract_cmd = r'C:\Users\lawrence\miniconda3\envs\deepseek-ocr2\Library\bin\tesseract.exe'
-    except ImportError:
-        pass
+    #try:
+    import pytesseract
+    #    pytesseract.pytesseract.tesseract_cmd = r'C:\Users\lawrence\miniconda3\envs\deepseek-ocr2\Library\bin\tesseract.exe'
+    #except ImportError:
+    #    pass
