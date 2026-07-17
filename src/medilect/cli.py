@@ -81,15 +81,25 @@ def execute_pipeline(input_path_str: str, out_dir_str: str, pages_str: str, merg
                 current_crops = processor.run(current_crops)
             
             # 2. Transcription Stage
-            print(f"       ↳ Transcribing {len(current_crops)} segment(s) with {transcriber.__class__.__name__}...")
-            page_raw_text = ""
+            print(f"       ↳ Transcribing {len(current_crops)} segment(s)...")
             
-            for crop in current_crops:
-                results = transcriber.run(crops=[crop])                    
-                page_raw_text += "\n\n".join(results) + "\n\n"
+            was_split = len(current_crops) > 1
+            
+            for idx, crop in enumerate(current_crops):
+                # Dynamically route arguments based on the engine (MinerU vs Paddle)
+                if transcriber.__class__.__name__ == "MinerUTranscriber":
+                    results = transcriber.run(crops=[crop], full_page_image=crop)
+                else:
+                    results = transcriber.run(crops=[crop])
                 
-            # Save the raw text to our dictionary
-            corpus_dict[page_key] = page_raw_text.strip()
+                segment_text = "\n\n".join(results).strip()
+                
+                # If the image was a composite spread, save each half as an independent page file!
+                if was_split:
+                    split_key = f"{page_key}_split_{idx+1}"
+                    corpus_dict[split_key] = segment_text
+                else:
+                    corpus_dict[page_key] = segment_text
             
         except Exception as e:
             print(f"❌ Failed processing {page_key}: {e}")
