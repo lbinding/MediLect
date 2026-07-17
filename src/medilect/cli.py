@@ -40,7 +40,7 @@ def execute_pipeline(input_path_str: str, out_dir_str: str, pages_str: str, merg
         transcriber = MinerUTranscriber(use_gpu=True)
     elif transcriber_type == 'doctr':
         transcriber = DocTRTranscriber(use_gpu=True)
-    elif transcriber_type == 'paddle':
+    elif transcriber_type == 'paddleVL':
         transcriber = PaddleVLTranscriber(use_gpu=True, task="ocr")
     else:
         print(f"❌ Unknown transcriber engine requested: {transcriber_type}")
@@ -158,7 +158,7 @@ def main():
     parser.add_argument('--in', dest='input_path', help='Path to the target document (PDF/Image) or a directory of files.', required=True)
     parser.add_argument('--out', dest='out_dir', help='Directory where the transcribed and de-identified files will be saved.', default='./output')
     parser.add_argument('--pages', dest='pages', help="Comma-separated list of pages to process (e.g., '1,3,5').", default=None)
-    parser.add_argument('--transcriber', dest='transcriber_type', choices=['mineru', 'doctr', 'paddle'], default='mineru', help="Transcription model to use (mineru, doctr, or paddle).")
+    parser.add_argument('--transcriber', dest='transcriber_type', choices=['mineru', 'doctr', 'paddleVL'], default='mineru', help="Transcription model to use (mineru, doctr, or paddleVL).")
     parser.add_argument('--merge', dest='merge', action='store_true', help="Merge all processed pages into a single text file.")
     parser.add_argument('--skip-deid', dest='skip_deid', action='store_true', help="Skip the LLM/RoBERTa de-identification stage.")
     args = parser.parse_args()
