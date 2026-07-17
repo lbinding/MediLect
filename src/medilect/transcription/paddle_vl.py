@@ -31,7 +31,7 @@ class PaddleVLTranscriber:
         dtype: torch.dtype = torch.bfloat16,
         task: str = "ocr",
         max_new_tokens: int = 2048,
-        attn_implementation: str = "flash_attention_2",
+        attn_implementation: str = "sdpa",
     ):
         if task not in self._PROMPTS:
             raise ValueError(f"task must be one of {list(self._PROMPTS)}")
