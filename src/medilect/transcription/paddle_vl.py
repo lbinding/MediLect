@@ -31,7 +31,7 @@ class PaddleVLTranscriber:
         dtype: torch.dtype = torch.bfloat16,
         task: str = "ocr",
         max_new_tokens: int = 2048,
-        attn_implementation: str = "sdpa",
+        attn_implementation: str = "flash_attention_2",
     ):
         if task not in self._PROMPTS:
             raise ValueError(f"task must be one of {list(self._PROMPTS)}")
@@ -242,6 +242,9 @@ class PaddleVLTranscriber:
                     return_tensors="pt"
                 ).to(self.device)
 
+                print("pixel_values" in inputs, inputs.get("pixel_values", torch.tensor([])).shape,
+                    inputs.get("pixel_values", torch.tensor([])).float().mean().item())
+
                 with torch.inference_mode():
                     generated = self.model.generate(
                         **inputs, 
@@ -249,6 +252,8 @@ class PaddleVLTranscriber:
                         do_sample=False, 
                         use_cache=True
                     )
+                    print(torch.isnan(generated).any().item(), torch.isinf(generated).any().item())
+
 
                 # Strip the echoed prompt tokens, keep only newly generated content
                 input_len = inputs["input_ids"].shape[1]
