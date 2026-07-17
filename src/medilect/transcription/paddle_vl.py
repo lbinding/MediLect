@@ -158,7 +158,7 @@ class PaddleVLTranscriber:
             }
 
             def filtered_create_causal_mask(*args, **kwargs):
-                # --- NEW FIX: Dynamically align "embeds" variable names to the current transformers signature ---
+                # Dynamically align "embeds" variable names to the current transformers signature
                 if "inputs_embeds" in accepted_params and "input_embeds" in kwargs:
                     kwargs["inputs_embeds"] = kwargs.pop("input_embeds")
                 elif "input_embeds" in accepted_params and "inputs_embeds" in kwargs:
@@ -211,42 +211,50 @@ class PaddleVLTranscriber:
             return []
 
         prompt = self._PROMPTS[task or self.task]
-        
-        messages = [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "image"},
-                    {"type": "text", "text": prompt},
-                ]
-            }
-        ]
-        text = self.processor.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
-        )
-        
         results = []
         
         for crop in crops:
             pil_img = self._to_pil(crop)
             
-            inputs = self.processor(
-                text=text, images=pil_img, return_tensors="pt"
-            )
-            inputs = {
-                k: (v.to(self.device) if isinstance(v, torch.Tensor) else v)
-                for k, v in inputs.items()
-            }
+            # The image MUST be passed inside the dictionary here 
+            # so the processor can calculate the grid and inject the visual tokens!
+            messages = [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "image", "image": pil_img},
+                        {"type": "text", "text": prompt},
+                    ]
+                }
+            ]
+            
+            try:
+                # Let the processor handle the tokenization and image embedding together
+                inputs = self.processor.apply_chat_template(
+                    messages, 
+                    tokenize=True, 
+                    add_generation_prompt=True,     
+                    return_dict=True,
+                    return_tensors="pt"
+                ).to(self.device)
 
-            with torch.inference_mode():
-                generated = self.model.generate(
-                    **inputs, max_new_tokens=self.max_new_tokens, do_sample=False, use_cache=True
-                )
+                with torch.inference_mode():
+                    generated = self.model.generate(
+                        **inputs, 
+                        max_new_tokens=self.max_new_tokens, 
+                        do_sample=False, 
+                        use_cache=True
+                    )
 
-            input_len = inputs["input_ids"].shape[1]
-            new_tokens = generated[:, input_len:]
-            decoded = self.processor.batch_decode(new_tokens, skip_special_tokens=True)[0]
-            results.append(decoded.strip())
+                # Strip the echoed prompt tokens, keep only newly generated content
+                input_len = inputs["input_ids"].shape[1]
+                new_tokens = generated[:, input_len:]
+                decoded = self.processor.batch_decode(new_tokens, skip_special_tokens=True)[0]
+                results.append(decoded.strip())
+                
+            except Exception as e:
+                print(f" ⚠️ Failed during generation: {e}")
+                results.append("")
 
         return results
 
