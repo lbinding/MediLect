@@ -216,25 +216,29 @@ class PaddleVLTranscriber:
         for crop in crops:
             pil_img = self._to_pil(crop)
             
-            # The image MUST be passed inside the dictionary here 
-            # so the processor can calculate the grid and inject the visual tokens!
             messages = [
                 {
                     "role": "user",
                     "content": [
-                        {"type": "image", "image": pil_img},
+                        {"type": "image"},
                         {"type": "text", "text": prompt},
                     ]
                 }
             ]
             
             try:
-                # Let the processor handle the tokenization and image embedding together
-                inputs = self.processor.apply_chat_template(
+                # 1. Format the text string with the <image> placeholder
+                text_prompt = self.processor.apply_chat_template(
                     messages, 
-                    tokenize=True, 
-                    add_generation_prompt=True,     
-                    return_dict=True,
+                    tokenize=False, 
+                    add_generation_prompt=True
+                )
+
+                # 2. Explicitly pass BOTH the text and the image to the processor
+                # This guarantees `pixel_values` (the actual image data) is generated!
+                inputs = self.processor(
+                    text=text_prompt, 
+                    images=pil_img, 
                     return_tensors="pt"
                 ).to(self.device)
 
