@@ -40,7 +40,7 @@ def execute_pipeline(input_path_str: str, out_dir_str: str, pages_str: str, merg
         transcriber = MinerUTranscriber(use_gpu=True)
     elif transcriber_type == 'doctr':
         transcriber = DocTRTranscriber(use_gpu=True)
-    elif transcriber_type == 'paddleVL':
+    elif transcriber_type == 'paddle':
         transcriber = PaddleVLTranscriber(use_gpu=True, task="ocr")
     else:
         print(f"❌ Unknown transcriber engine requested: {transcriber_type}")
@@ -81,25 +81,15 @@ def execute_pipeline(input_path_str: str, out_dir_str: str, pages_str: str, merg
                 current_crops = processor.run(current_crops)
             
             # 2. Transcription Stage
-            print(f"       ↳ Transcribing {len(current_crops)} segment(s)...")
+            print(f"       ↳ Transcribing {len(current_crops)} segment(s) with {transcriber.__class__.__name__}...")
+            page_raw_text = ""
             
-            was_split = len(current_crops) > 1
-            
-            for idx, crop in enumerate(current_crops):
-                # Dynamically route arguments based on the engine (MinerU vs Paddle)
-                if transcriber.__class__.__name__ == "MinerUTranscriber":
-                    results = transcriber.run(crops=[crop], full_page_image=crop)
-                else:
-                    results = transcriber.run(crops=[crop])
+            for crop in current_crops:
+                results = transcriber.run(crops=[crop])                    
+                page_raw_text += "\n\n".join(results) + "\n\n"
                 
-                segment_text = "\n\n".join(results).strip()
-                
-                # If the image was a composite spread, save each half as an independent page file!
-                if was_split:
-                    split_key = f"{page_key}_split_{idx+1}"
-                    corpus_dict[split_key] = segment_text
-                else:
-                    corpus_dict[page_key] = segment_text
+            # Save the raw text to our dictionary
+            corpus_dict[page_key] = page_raw_text.strip()
             
         except Exception as e:
             print(f"❌ Failed processing {page_key}: {e}")
@@ -158,7 +148,7 @@ def main():
     parser.add_argument('--in', dest='input_path', help='Path to the target document (PDF/Image) or a directory of files.', required=True)
     parser.add_argument('--out', dest='out_dir', help='Directory where the transcribed and de-identified files will be saved.', default='./output')
     parser.add_argument('--pages', dest='pages', help="Comma-separated list of pages to process (e.g., '1,3,5').", default=None)
-    parser.add_argument('--transcriber', dest='transcriber_type', choices=['mineru', 'doctr', 'paddleVL'], default='mineru', help="Transcription model to use (mineru, doctr, or paddleVL).")
+    parser.add_argument('--transcriber', dest='transcriber_type', choices=['mineru', 'doctr', 'paddle'], default='mineru', help="Transcription model to use (mineru, doctr, or paddle).")
     parser.add_argument('--merge', dest='merge', action='store_true', help="Merge all processed pages into a single text file.")
     parser.add_argument('--skip-deid', dest='skip_deid', action='store_true', help="Skip the LLM/RoBERTa de-identification stage.")
     args = parser.parse_args()
