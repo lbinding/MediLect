@@ -35,11 +35,11 @@ def configure_tesseract():
     Apologies for the spaghetti, but this is a necessary evil to get Tesseract working on my Windows.
     """
     # 1. Set the data prefix environment variable
-    #os.environ['TESSDATA_PREFIX'] = r'C:\Users\lawrence\miniconda3\envs\deepseek-ocr2\share\tessdata'
+    os.environ['TESSDATA_PREFIX'] = r'C:\Users\lawrence\miniconda3\envs\deepseek-ocr2\share\tessdata'
     
     # 2. Safely map the executable (fails gracefully if pytesseract isn't in this specific conda env)
-    #try:
-    import pytesseract
-    #    pytesseract.pytesseract.tesseract_cmd = r'C:\Users\lawrence\miniconda3\envs\deepseek-ocr2\Library\bin\tesseract.exe'
-    #except ImportError:
-    #    pass
+    try:
+        import pytesseract
+        pytesseract.pytesseract.tesseract_cmd = r'C:\Users\lawrence\miniconda3\envs\deepseek-ocr2\Library\bin\tesseract.exe'
+    except ImportError:
+        pass

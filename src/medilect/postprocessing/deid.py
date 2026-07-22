@@ -2,7 +2,7 @@ import re
 import sys
 import markdown
 from bs4 import BeautifulSoup
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple
 from pydantic import BaseModel, Field
 from .base import BasePostprocessor
 from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassification
@@ -37,10 +37,10 @@ class HybridDeidentifier(BasePostprocessor):
             "august", "september", "october", "november", "december"
         }
 
-    def run(self, raw_pages: Dict[str, str]) -> Dict[str, Dict[str, str]]:
+    def run(self, raw_pages: Dict[str, str]) -> Dict[str, Dict[str, Any]]:
         """
         Accepts: {'page_0000': '# Patient Name: Clive...', 'page_0001': ...}
-        Returns: {'page_0000': {'clean_ocr': '...', 'roberta_only': '...', 'final_llm_scrubbed': '...'}}
+        Returns: {'page_0000': {'clean_ocr': '...', 'roberta_only': '...', 'final_llm_scrubbed': '...', 'redacted_entities': [...]}}
         """
         audit_trail = {}
 
@@ -53,20 +53,27 @@ class HybridDeidentifier(BasePostprocessor):
                 audit_trail[page_id] = {
                     "clean_ocr": "", 
                     "roberta_only": "", 
-                    "final_llm_scrubbed": ""
+                    "final_llm_scrubbed": "",
+                    "redacted_entities": []
                 }
                 continue
 
             # Step 2: Deterministic RoBERTa pass (Date-Preserving)
-            roberta_text = self._stage1_roberta_scrub(clean_text)
+            # Now returns both the text and a list of what it removed
+            roberta_text, roberta_removed = self._stage1_roberta_scrub(clean_text)
 
             # Step 3: Generative LLM Auditor Sweep
-            final_scrubbed_text = self._stage2_llm_audit_scrub(clean_text, roberta_text)
+            # Now returns both the text and a list of what it removed
+            final_scrubbed_text, llm_removed = self._stage2_llm_audit_scrub(clean_text, roberta_text)
+
+            # Combine and deduplicate all removed entities
+            all_removed_entities = list(set(roberta_removed + llm_removed))
 
             audit_trail[page_id] = {
                 "clean_ocr": clean_text,
                 "roberta_only": roberta_text,
-                "final_llm_scrubbed": final_scrubbed_text
+                "final_llm_scrubbed": final_scrubbed_text,
+                "redacted_entities": all_removed_entities
             }
 
         return audit_trail
@@ -77,7 +84,7 @@ class HybridDeidentifier(BasePostprocessor):
         clean_text = soup.get_text(separator=' ', strip=True)
         return clean_text.replace('\n', ' ')
 
-    def _stage1_roberta_scrub(self, text: str) -> str:
+    def _stage1_roberta_scrub(self, text: str) -> Tuple[str, List[str]]:
         entities = []
         offset = 0
         max_chars = 1500
@@ -104,14 +111,20 @@ class HybridDeidentifier(BasePostprocessor):
             offset = chunk_end
 
         scrubbed = text
+        removed_items = []
+        
         for ent in sorted(entities, key=lambda x: x['start'], reverse=True):
             start = ent['start']
             end = ent['end']
+            
+            # Extract the actual string that is about to be replaced
+            removed_items.append(text[start:end])
+            
             scrubbed = scrubbed[:start] + "***" + scrubbed[end:]
             
-        return scrubbed
+        return scrubbed, removed_items
 
-    def _stage2_llm_audit_scrub(self, original_clean_text: str, current_scrubbed_text: str) -> str:
+    def _stage2_llm_audit_scrub(self, original_clean_text: str, current_scrubbed_text: str) -> Tuple[str, List[str]]:
         PROMPT_REGISTRY = [
             (
                 "UK Postcodes & Addresses", 
@@ -165,7 +178,6 @@ class HybridDeidentifier(BasePostprocessor):
                     if not raw_content or not raw_content.strip():
                         continue
 
-                    # Using the dynamic md_fence variable so it doesn't break the IDE syntax parser
                     json_regex = rf"{md_fence}json\s*(.*?)\s*{md_fence}"
                     json_match = re.search(json_regex, raw_content, re.DOTALL)
                     
@@ -181,11 +193,11 @@ class HybridDeidentifier(BasePostprocessor):
                     harvested_pii.extend(cleaned_data.extracted_identifiers)
 
                 except Exception as e:
-                    # Silently skip misformatted JSON outputs from individual LLM passes
                     continue 
 
         unique_pii = list(set(harvested_pii))
         active_text = current_scrubbed_text
+        removed_items = []
 
         for pii_snippet in unique_pii:
             for word in pii_snippet.split():
@@ -196,9 +208,13 @@ class HybridDeidentifier(BasePostprocessor):
                 if len(w_clean) > 2 and w_clean != "***" and w_clean.lower() not in self.safe_words:
                     escaped_word = re.escape(w_clean)
                     pattern = re.compile(rf"\b{escaped_word}\b", re.IGNORECASE)
-                    active_text = pattern.sub("***", active_text)
+                    
+                    # Only log it as removed if it is actually found and replaced in the text
+                    if pattern.search(active_text):
+                        removed_items.append(w_clean)
+                        active_text = pattern.sub("***", active_text)
 
-        return active_text
+        return active_text, removed_items
 
     def _get_overlapping_chunks(self, text: str, chunk_size: int, overlap: int) -> List[str]:
         chunks = []

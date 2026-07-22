@@ -30,7 +30,8 @@ dependencies = [
     "markdown",
     "beautifulsoup4>=4.15.0",
     "accelerate==1.14.0",
-    "einops>=0.8.2"
+    "einops>=0.8.2",
+    "sentencepiece"
 ]
 
 [project.optional-dependencies]
